@@ -1,0 +1,21 @@
+# Behaviour checklist
+
+Pi sources: `pi-notify` (neutral semantic hooks, `agent_notify`, bel/osc/cmd/shell/js), `~/.pi/agent/extensions/ask-user-semantic-hook.ts`, `~/.pi/agent/extensions/herdr-agent-state.ts`. User config: `~/.pi/agent/pi-notify.json` (hooks `agent-notify`, `user-ready`, `watchdog-continued`, `watchdog-waiting`, `reflection-completed`; event `tool_execution_start:ask_user_question`). Delivery script `~/.pi/agent/pi-notify-delivery.mjs` stays outside this repo (it holds service URLs).
+
+| item | Pi evidence | DSH mapping | status | test |
+| --- | --- | --- | --- | --- |
+| Load nested `events`/`hooks` JSON; invalid entries warn and drop; empty `actions` disables; project file overrides a whole binding only when trusted | `src/config.ts` `loadConfig` | Same parser. Global file: explicit `configPath`, else `$DSH_HOME/dsh-notify.json` if present, else `~/.pi/agent/pi-notify.json`. `allowProjectConfig` default false | ported | `test/notify.test.js` config + live file |
+| Lifecycle `agent_settled` runs that event's actions | `index.ts` `pi.on("agent_settled")` | `agent/status` with `status === "idle"` on a root agent (`delegationDepth` absent or 0). `dsh-agent` `runtime-types.d.ts` `agent/status` | ported | `test/plugin.test.js` |
+| Lifecycle `tool_execution_start:ask_user_question` | `index.ts` `tool_execution_start` + tool name | `tools/pre-execute` waterfall when `exec.name === "ask_user_question"` (`dsh-tools` `invariant.js`). Must call `next()`. Args exposed as `event.args` (`exec.arguments`) | ported | `test/plugin.test.js`, js action test |
+| Actions `bel`, `osc`, `osc:title\|body`, `cmd:`, `shell:[...]`, `js:` with `notification.bel/osc`, templates `{{TITLE}}` etc, env `PI_NOTIFY_*` | `src/actions.ts`, `src/osc.ts`, `src/command.ts`, `src/context.ts` | Same modules under `lib/` | ported | `test/notify.test.js` |
+| Delay: `delayMs === 0` is a microtask; otherwise `setTimeout` + `unref`; dispose cancels | `index.ts` `scheduleBinding` | Same | ported | plugin test (delay 0) |
+| Semantic hook bus `pi:semantic-hook:v1`, version 1, kebab name, `UPPER_SNAKE` string values | `pi-extension-utils` via `index.ts` | `lib/semantic-hook.js` on the cordis bus (`ctx.emit` / `ctx.on`) | ported | semantic hook test |
+| `agent_notify` tool only if hook `agent-notify` has actions; publishes `TITLE`/`CONTENT` | `index.ts` `registerTool` | `ctx.tools.register(defineTool(...))` (`dsh-tools` `defineTool`) | ported | `test/plugin.test.js` |
+| Ask-user semantic hooks `ask-user-wait-started` / `ask-user-wait-finished` | `ask-user-semantic-hook.ts` listens to `rpiv:ask-user:blocked` | Same listener. DSH's built-in tool does not emit that event (`dsh-tool-ask-user` has no `rpiv:` emit), so this plugin emits `{active:true}` on `tools/pre-execute` and `{active:false}` on `tools/result` | ported | `test/plugin.test.js` |
+| Herdr pane state `working`/`blocked`/`idle` plus `pane.report_agent_session` | `herdr-agent-state.ts`: `session_start` (tui only), `agent_start`, `agent_settled`, `herdr:blocked`. Wire `source=herdr:pi`, `agent=pi` | `agent/created` (`source` is `startup\|resume\|clear\|compact`), `agent/status`, `herdr:blocked`. TTY gate replaces Pi `ctx.mode==="tui"` (no mode on the agent). Root agent only, because child agents share this process | ported | `test/notify.test.js` herdr socket |
+| Action failure toast `ctx.ui.notify` when `hasUI` | `index.ts` `onActionFailure` | No server-plugin toast seam. `host.toast.show` is a TUI-client port and dsh-tui marks it degraded (`extensions-driver.js`). Failures go to `ctx.logger.warn` only | gap | — |
+| `{{SESSION_FILE}}` / herdr `agent_session_path` | Pi `sessionManager.getSessionFile()` | `SessionHeader` (`dsh-session` `types.d.ts`) has cwd, id, delegation depth, no session file path | gap | — |
+| Project config trust | `ctx.isProjectTrusted()` | No trust API on the plugin context. Project file is off unless `allowProjectConfig: true` | gap | — |
+| `herdr:busy` pane metadata from pi-subagents | not this extension | not this plugin | gap | — |
+
+User hooks `user-ready`, `watchdog-*`, and `reflection-completed` fire only when some producer publishes those semantic hooks. pi-notify itself does not emit them; continue/reflect watchdogs do. This repo does not port those producers.

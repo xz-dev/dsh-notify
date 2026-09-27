@@ -1,0 +1,11 @@
+# dsh-notify bundle patch. Defaults match the Pi install:
+# read $DSH_HOME/dsh-notify.json if it exists, otherwise ~/.pi/agent/pi-notify.json.
+# Flags below are the schema defaults (all enabled).
+- insert:
+    - id: dsh-notify
+      name: dsh-notify
+      config:
+        enableAgentNotifyTool: true
+        enableAskUserHook: true
+        enableHerdr: true
+        allowProjectConfig: false

@@ -1,0 +1,50 @@
+{
+  "name": "dsh-notify",
+  "version": "0.1.0",
+  "description": "Neutral semantic hooks, agent_notify tool, and configured notification actions (bel/osc/cmd/shell/js) for DeepSeek Harness — a port of pi-notify, ask-user-semantic-hook and herdr-agent-state.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "BEHAVIOR.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node test/link-peers.js && node --test test/*.test.js"
+  },
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "cordis",
+    "notifications",
+    "semantic-hooks"
+  ],
+  "author": "Xiangzhe",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xz-dev/dsh-notify.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/dsh-tools": "0.1.7-rc.2",
+    "@deepseek-ai/schemastery": "3.18.4"
+  }
+}

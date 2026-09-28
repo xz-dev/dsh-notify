@@ -5,7 +5,6 @@
  *
  * Behaviour contract and gap list: see BEHAVIOR.md.
  */
-import { existsSync } from "node:fs";
 import { homedir, hostname } from "node:os";
 import { join } from "node:path";
 
@@ -33,8 +32,11 @@ export const Config = z.object({
   enableAgentNotifyTool: z.boolean().default(true),
   /** Publish ask-user-wait-started/finished semantic hooks around ask_user_question calls. */
   enableAskUserHook: z.boolean().default(true),
-  /** Report agent working/blocked/idle state to herdr when launched inside a herdr pane. */
-  enableHerdr: z.boolean().default(true),
+  /**
+   * Report agent working/blocked/idle state to herdr when launched inside a herdr pane.
+   * Off by default: herdr's own agent integration already reports state, and both at once duplicate it.
+   */
+  enableHerdr: z.boolean().default(false),
 });
 
 const AGENT_NOTIFY_HOOK = "agent-notify";
@@ -136,15 +138,10 @@ function bindingHasActions(binding) {
   );
 }
 
-/** `$DSH_HOME/dsh-notify.json`, else the live Pi file, else the DSH path (missing = empty). */
+/** Explicit `configPath`, else `$DSH_HOME/dsh-notify.json` (missing = no bindings). */
 export function resolveGlobalConfigPath(configPath, dshHome) {
   const explicit = typeof configPath === "string" ? configPath.trim() : "";
-  if (explicit) return explicit;
-  const dshPath = join(dshHome, "dsh-notify.json");
-  if (existsSync(dshPath)) return dshPath;
-  const piPath = join(homedir(), ".pi", "agent", "pi-notify.json");
-  if (existsSync(piPath)) return piPath;
-  return dshPath;
+  return explicit || join(dshHome, "dsh-notify.json");
 }
 
 export async function apply(ctx, config = {}) {
@@ -317,7 +314,7 @@ export async function apply(ctx, config = {}) {
   // --- Herdr agent state ---
   // Driven by DSH agent/session state, not the TUI: active when herdr launched this
   // process (HERDR_ENV + socket + pane); only the root agent owns the pane.
-  const herdr = config.enableHerdr === false ? null : createHerdrReporter();
+  const herdr = config.enableHerdr === true ? createHerdrReporter() : null;
   const herdrActive = herdr?.enabled() === true;
   let currentRootAgent;
   let rootSession = false;

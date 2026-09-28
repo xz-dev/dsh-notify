@@ -40,8 +40,8 @@ test("config keeps user-shaped events and hooks, drops bad actions", async () =>
   rmSync(dir, { recursive: true });
 });
 
-test("live pi-notify.json parses when present", async () => {
-  const file = join(process.env.HOME ?? "", ".pi/agent/pi-notify.json");
+test("live dsh-notify.json parses when present", async () => {
+  const file = join(process.env.DSH_HOME ?? join(process.env.HOME ?? "", ".dsh"), "dsh-notify.json");
   const { existsSync } = await import("node:fs");
   if (!existsSync(file)) return;
   const warnings = [];

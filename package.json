@@ -1,6 +1,6 @@
 {
   "name": "dsh-notify",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Neutral semantic hooks, agent_notify tool, and configured notification actions (bel/osc/cmd/shell/js) for DeepSeek Harness — a port of pi-notify, ask-user-semantic-hook and herdr-agent-state.",
   "type": "module",
   "main": "index.js",

@@ -65,7 +65,7 @@ test("approval/asked -> blocked, approval/decided -> working, idle clears", { sk
   Object.assign(process.env, { HERDR_ENV: "1", HERDR_SOCKET_PATH: srv.sock, HERDR_PANE_ID: "p1" });
   try {
     const ctx = fakeCtx();
-    await apply(ctx, { configPath: join(tmpdir(), "missing-dsh-notify.json"), enableAgentNotifyTool: false });
+    await apply(ctx, { configPath: join(tmpdir(), "missing-dsh-notify.json"), enableAgentNotifyTool: false, enableHerdr: true });
     const root = { id: "root", status: "running", session: { header: { delegationDepth: 0 } } };
     const child = { id: "child", status: "running", session: { header: { delegationDepth: 1 } } };
     await ctx.hook("agent/created")({ agent: root, source: "startup" });
@@ -102,7 +102,7 @@ test("ask_user_question -> blocked until its tools/result", { skip: !apply }, as
   Object.assign(process.env, { HERDR_ENV: "1", HERDR_SOCKET_PATH: srv.sock, HERDR_PANE_ID: "p1" });
   try {
     const ctx = fakeCtx();
-    await apply(ctx, { configPath: join(tmpdir(), "missing-dsh-notify.json"), enableAgentNotifyTool: false });
+    await apply(ctx, { configPath: join(tmpdir(), "missing-dsh-notify.json"), enableAgentNotifyTool: false, enableHerdr: true });
     const root = { id: "root", status: "running", session: { header: {} } };
     await ctx.hook("agent/created")({ agent: root, source: "startup" });
     await ctx.hook("tools/pre-execute")({ name: "ask_user_question", callId: "q1", arguments: {}, agent: root }, () => ({ kind: "allow" }));
@@ -125,11 +125,29 @@ test("outside a herdr pane nothing is reported", { skip: !apply }, async () => {
   delete process.env.HERDR_ENV;
   try {
     const ctx = fakeCtx();
-    await apply(ctx, { configPath: join(tmpdir(), "missing-dsh-notify.json"), enableAgentNotifyTool: false });
+    await apply(ctx, { configPath: join(tmpdir(), "missing-dsh-notify.json"), enableAgentNotifyTool: false, enableHerdr: true });
     const root = { id: "root", status: "running", session: { header: {} } };
     await ctx.hook("agent/created")({ agent: root, source: "startup" });
     ctx.hook("session/event")(root.session, { type: "approval/asked", data: { id: "a", toolName: "bash" } });
   } finally {
     process.env = saved;
+  }
+});
+
+test("inside a herdr pane nothing is reported unless enableHerdr", { skip: !apply }, async () => {
+  const srv = await herdrServer();
+  const saved = { ...process.env };
+  Object.assign(process.env, { HERDR_ENV: "1", HERDR_SOCKET_PATH: srv.sock, HERDR_PANE_ID: "p1" });
+  try {
+    const ctx = fakeCtx();
+    await apply(ctx, { configPath: join(tmpdir(), "missing-dsh-notify.json"), enableAgentNotifyTool: false });
+    const root = { id: "root", status: "running", session: { header: { delegationDepth: 0 } } };
+    await ctx.hook("agent/created")({ agent: root, source: "startup" });
+    ctx.hook("session/event")(root.session, { type: "approval/asked", data: { id: "a", toolName: "bash" } });
+    await settle();
+    assert.deepEqual(srv.states(), []);
+  } finally {
+    process.env = saved;
+    srv.close();
   }
 });

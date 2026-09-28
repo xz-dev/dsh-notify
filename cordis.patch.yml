@@ -1,11 +1,10 @@
-# dsh-notify bundle patch. Defaults match the Pi install:
-# read $DSH_HOME/dsh-notify.json if it exists, otherwise ~/.pi/agent/pi-notify.json.
-# Flags below are the schema defaults (all enabled).
+# dsh-notify bundle patch. Bindings come from $DSH_HOME/dsh-notify.json (or configPath).
+# herdr reporting is off: herdr's own agent integration already reports pane state.
 - insert:
     - id: dsh-notify
       name: dsh-notify
       config:
         enableAgentNotifyTool: true
         enableAskUserHook: true
-        enableHerdr: true
+        enableHerdr: false
         allowProjectConfig: false

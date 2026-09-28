@@ -107,11 +107,10 @@ test("herdr:blocked does not follow ask_user_question", { skip: !apply }, async 
   assert.equal(blocked.length, 0);
 });
 
-test("resolveGlobalConfigPath prefers DSH file over Pi file", () => {
+test("resolveGlobalConfigPath uses only the DSH file", () => {
   if (!resolveGlobalConfigPath) return;
   const dir = mkdtempSync(join(tmpdir(), "dsh-notify-path-"));
-  const chosen = resolveGlobalConfigPath(undefined, dir);
-  assert.equal(chosen.endsWith(`${join(".pi", "agent", "pi-notify.json")}`) || chosen.endsWith("dsh-notify.json"), true);
+  assert.equal(resolveGlobalConfigPath(undefined, dir), join(dir, "dsh-notify.json"));
   const explicit = resolveGlobalConfigPath("  /tmp/custom.json  ", dir);
   assert.equal(explicit, "/tmp/custom.json");
   rmSync(dir, { recursive: true, force: true });

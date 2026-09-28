@@ -314,10 +314,11 @@ export async function apply(ctx, config = {}) {
     }
   }
 
-  // --- Herdr agent state (root agent, interactive TTY only) ---
-  // ponytail: stdout.isTTY stands in for Pi ctx.mode==="tui" (no mode field on DSH agents).
+  // --- Herdr agent state ---
+  // Driven by DSH agent/session state, not the TUI: active when herdr launched this
+  // process (HERDR_ENV + socket + pane); only the root agent owns the pane.
   const herdr = config.enableHerdr === false ? null : createHerdrReporter();
-  const herdrActive = herdr?.enabled() === true && process.stdout.isTTY === true;
+  const herdrActive = herdr?.enabled() === true;
   let currentRootAgent;
   let rootSession = false;
 
@@ -380,9 +381,26 @@ export async function apply(ctx, config = {}) {
     }),
   );
 
+  // Tool approvals from the durable session log (dsh-user-approval): any agent in
+  // this process, because a child's approval also waits on the human.
+  disposers.push(
+    ctx.on("session/event", (_session, event) => {
+      if (!herdrActive || !rootSession || state.cleaned) return;
+      const id = event?.data?.id;
+      if (typeof id !== "string") return;
+      if (event.type === "approval/asked") {
+        const tool = typeof event.data.toolName === "string" ? event.data.toolName : "tool";
+        herdr.waitStarted(`approval:${id}`, `approval: ${tool}`);
+      } else if (event.type === "approval/decided") {
+        herdr.waitFinished(`approval:${id}`);
+      }
+    }),
+  );
+
   disposers.push(
     ctx.on("tools/pre-execute", async (exec, next) => {
       if (exec.name !== ASK_USER_TOOL || state.cleaned) return next();
+      if (herdrActive && rootSession) herdr.waitStarted(`ask:${exec.callId}`, "question");
       const toolEvent = toolEventOf(exec);
       if (exec.agent && isRootAgent(exec.agent)) currentRootAgent = exec.agent;
       // DSH ask_user_question does not emit rpiv:ask-user:blocked; synthesize it.
@@ -395,6 +413,7 @@ export async function apply(ctx, config = {}) {
   disposers.push(
     ctx.on("tools/result", (exec) => {
       if (exec.name !== ASK_USER_TOOL || state.cleaned) return;
+      if (herdrActive && rootSession) herdr.waitFinished(`ask:${exec.callId}`);
       if (config.enableAskUserHook !== false) ctx.emit("rpiv:ask-user:blocked", { active: false });
     }),
   );
